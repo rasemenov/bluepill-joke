@@ -1,0 +1,6 @@
+[submodule "contrib/libopencm3"]
+	path = contrib/libopencm3
+	url = https://github.com/libopencm3/libopencm3
+[submodule "contrib/printf"]
+	path = contrib/printf
+	url = https://github.com/mpaland/printf

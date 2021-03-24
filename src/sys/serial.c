@@ -8,7 +8,7 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/usart.h>
-
+#include <libopencm3/cm3/nvic.h>
 
 uint16_t rcv_buf[RCV_BUFFER_SIZE] = {0};
 uint16_t send_buf[SEND_BUFFER_SIZE] = {0};
@@ -18,6 +18,56 @@ volatile int cmd_data_len = 0;
 volatile int send_data_len = 0;
 volatile int buf_indx_send = 0;
 bool is_cmd_received = false;
+
+
+void uart_setup(void) {
+    nvic_enable_irq(NVIC_USART1_IRQ);
+	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_USART1);
+
+	// UART TX on PA9 (GPIO_USART1_TX)
+	gpio_set_mode(GPIOA,
+                  GPIO_MODE_OUTPUT_50_MHZ,
+                  GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
+                  GPIO_USART1_TX);
+	gpio_set_mode(GPIOA,
+                  GPIO_MODE_INPUT,
+                  GPIO_CNF_INPUT_FLOAT,
+                  GPIO_USART1_RX);
+
+	usart_set_baudrate(USART1,115200);
+	usart_set_databits(USART1,8);
+	usart_set_stopbits(USART1,USART_STOPBITS_1);
+	usart_set_mode(USART1,USART_MODE_TX_RX);
+	usart_set_parity(USART1,USART_PARITY_NONE);
+	usart_set_flow_control(USART1,USART_FLOWCONTROL_NONE);
+    USART_CR1(USART1) |= USART_CR1_RXNEIE;
+	usart_enable(USART1);
+}
+
+
+void usart1_isr(void) {
+    if (USART_SR(USART1) & USART_SR_RXNE) {
+        uart_rcv_echo_buffer(usart_recv(USART1));
+        USART_CR1(USART1) |= USART_CR1_TXEIE;
+    }
+
+	if (USART_SR(USART1) & USART_SR_TXE) {
+        enum response_state state = uart_send_response();
+        switch (state) {
+            case DONE:
+                USART_CR1(USART1) &= ~USART_CR1_TXEIE;
+            case HAS_MORE:
+                return;
+            case EMPTY:
+            default:
+                uart_send_echo_buffer();
+                /* Disable the TXE interrupt as we don't need it anymore. */
+                USART_CR1(USART1) &= ~USART_CR1_TXEIE;
+                break;
+        }
+	}
+}
 
 
 static void put_data_rcv_buffer(uint16_t data) {
@@ -93,6 +143,9 @@ void uart_rcv_echo_buffer(uint16_t data) {
         // On backspace move caret backwards, replace symbol with whitespace
         // and move caret backwards again.
         uart_put_raw_line("\b \b");
+        // TODO: bug for backspace here
+        buf_indx_write = (buf_indx_write - 1) % RCV_BUFFER_SIZE;
+        cmd_data_len = cmd_data_len ? cmd_data_len - 1 : 0;
         return;
     } else if (data == '\r') {
         uart_put_raw_line("\r\n");

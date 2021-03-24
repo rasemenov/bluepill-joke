@@ -3,10 +3,16 @@
 ######################################################################
 
 PREFIX		?= arm-none-eabi
+BINARY      := main
 
 TOP_DIR 	:= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-OPENCM3_DIR := $(abspath $(TOP_DIR)/contrib/libopencm3)
-SRC_DIR     := $(abspath $(TOP_DIR)/src)
+CONTRIB_DIR := $(TOP_DIR)/contrib
+OPENCM3_DIR := $(CONTRIB_DIR)/libopencm3
+SRC_DIR     := ./src
+BUILD_DIR   := ./build
+INC_DIRS    := $(shell find $(SRC_DIR) -type d)
+INC_DIRS    += $(shell find $(CONTRIB_DIR) -type d)
+CONTRIB     := printf
 
 LIBNAME		= opencm3_stm32f1
 DEFS		+= -DSTM32F1
@@ -31,11 +37,12 @@ STYLECHECKFILES	:= $(shell find . -name '*.[ch]')
 OPT		:= -Os -g
 CSTD		?= -std=c99
 
-TEMP1 		= $(patsubst %.c,%.o,$(SRCFILES))
-TEMP2		= $(patsubst %.asm,%.o,$(TEMP1))
-OBJS 		= $(patsubst %.cpp,%.o,$(TEMP2))
+SRCFILES    = $(shell find $(SRC_DIR) -name \*.c)
+SRCFILES   += $(foreach dep,$(CONTRIB),$(shell find $(CONTRIB_DIR)/$(dep) -name \*.c))
+OBJS       := $(SRCFILES:%.c=$(BUILD_DIR)/%.o)
+INCLUDES   := $(addprefix -I,$(INC_DIRS))
 
-LDSCRIPT	?= $(TOP_DIR)/stm32f103c8t6.ld
+LDSCRIPT	?= $(SRC_DIR)/stm32f103c8t6.ld
 
 TGT_CFLAGS	+= $(OPT) $(CSTD)
 TGT_CFLAGS	+= $(ARCH_FLAGS)
@@ -57,7 +64,7 @@ TGT_CPPFLAGS	+= -I$(OPENCM3_DIR)/include
 TGT_LDFLAGS	+= --static -nostartfiles
 TGT_LDFLAGS	+= -T$(LDSCRIPT)
 TGT_LDFLAGS	+= $(ARCH_FLAGS)
-TGT_LDFLAGS	+= -Wl,-Map=$(*).map
+TGT_LDFLAGS	+= -Wl,-Map=$(BUILD_DIR)/$(BINARY).map
 TGT_LDFLAGS	+= -Wl,--gc-sections
 
 LDLIBS		+= -specs=nosys.specs
@@ -68,31 +75,39 @@ LDLIBS		+= -L$(OPENCM3_DIR)/lib -lopencm3_stm32f1
 .SECONDEXPANSION:
 .SECONDARY:
 
-elf:	$(DEPS) $(BINARY).elf
-bin:	$(DEPS) $(BINARY).bin
-hex:	$(DEPS) $(BINARY).hex
-srec:	$(DEPS) $(BINARY).srec
-list:	$(DEPS) $(BINARY).list
+$(BUILD_DIR)/$(BINARY).bin: $(BUILD_DIR)/$(BINARY)
+	@#printf "  OBJCOPY $(*).bin\n"
+	$(OBJCOPY) -Obinary $(*).elf $(*).bin
 
-elf: build lib
+$(BUILD_DIR)/$(BINARY): lib contrib $(OBJS)
+	@#printf "  $(OPENCM3_DIR)\n"
+	@echo building
+	$(LD) $(TGT_LDFLAGS) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@.elf
+	$(SIZE) $(BUILD_DIR)/$(BINARY).elf
+
+$(BUILD_DIR)/%.o: %.c
+	mkdir -p $(dir $@)
+	$(CC) $(TGT_CFLAGS) $(CFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -c $< -o $@
 
 lib:
-	$(MAKE) -C $(OPENCM3_DIR)
+	$(MAKE) -C $(OPENCM3_DIR) TARGETS=stm32/f1 all
 
-build: lib
-	@#printf "  $(OPENCM3_DIR)\n"
-	$(MAKE) --directory=$(SRC_DIR) OPENCM3_DIR=$(OPENCM3_DIR)
+contrib:
+	for dep in $(CONTRIB) ; do \
+		$(MAKE) -C $(CONTRIB_DIR)/$$(dep) ; \
+	done
 
 clean:
 	@#printf "  CLEAN\n"
-	$(RM) *.o *.d generated.* $(OBJS) $(patsubst %.o,%.d,$(OBJS))
+	rm -rf $(BUILD_DIR)
 
 clobber: clean
-	rm -f *.elf *.bin *.hex *.srec *.list *.map $(CLOBBER)
+	$(MAKE) -C $(OPENCM3_DIR) clean
+	$(foreach dep,$(CONTRIB),$(MAKE) -C $(CONTRIB_DIR)/$(dep) clean)
 
 # Flash 64k Device
-flash:	$(BINARY).bin
-	$(STFLASH) $(FLASHSIZE) write $(BINARY).bin 0x8000000
+flash:	$(BUILD_DIR)/$(BINARY).bin
+	$(STFLASH) $(FLASHSIZE) write $(BUILD_DIR)/$(BINARY).bin 0x8000000
 
 # Flash 128k Device
 bigflash: $(BINARY).bin

@@ -24,3 +24,8 @@ void set_systick(void) {
     systick_interrupt_enable();
     systick_counter_enable();
 }
+
+
+uint32_t get_systick(void) {
+    return ticks_counter;
+}

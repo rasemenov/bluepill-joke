@@ -1,12 +1,18 @@
 #include "cmds.h"
 #include "serial.h"
+#include "timer.h"
+#include "../utils/stm_snprintf.h"
 
+#include <stdint.h>
 #include <string.h>
 
+
 static void cli_help(int argc, char *argv[]);
+static void cli_time(int argc, char *argv[]);
 
 struct cmd_t commands[] = {
     {"help", "Print available commands and exit", &cli_help},
+    {"time", "Show current ticks counter", &cli_time},
 };
 
 
@@ -17,6 +23,16 @@ static void cli_help(int argc, char *argv[]) {
             uart_put_line(desc);
         }
     }
+}
+
+static void cli_time(int argc, char *argv[]) {
+    char buf[32] = {0};
+    uint32_t ticks = get_systick();
+    int ret = snprintf(buf, sizeof(buf) - 1, "Ticks %u", ticks);
+    if (ret <= 0 || ret >= sizeof(buf)) {
+        return;
+    }
+    uart_put_line(buf);
 }
 
 

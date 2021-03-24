@@ -10,13 +10,13 @@
 #define SEND_BUFFER_SIZE 256
 #define CRLF "\r\n"
 
-
 enum response_state {
     DONE,
     HAS_MORE,
     EMPTY
 };
 
+void uart_setup(void);
 
 void uart_put_raw_line(const char *line);
 
