@@ -78,6 +78,21 @@ static void put_data_rcv_buffer(uint16_t data) {
 }
 
 
+static void pop_data_rcv_buffer(void) {
+    if (buf_indx_write > 0) {
+        buf_indx_write--;
+    } else {
+        buf_indx_write = RCV_BUFFER_SIZE - 1;
+    }
+    if (rcv_data_len) {
+        rcv_data_len--;
+    }
+    if (cmd_data_len) {
+        cmd_data_len--;
+    }
+}
+
+
 static int get_read_indx_rcv_buffer(int data_len) {
     int indx_read = buf_indx_write - data_len;
     if (indx_read < 0) {
@@ -142,10 +157,10 @@ void uart_rcv_echo_buffer(uint16_t data) {
     if (data == 0x7f) {
         // On backspace move caret backwards, replace symbol with whitespace
         // and move caret backwards again.
-        uart_put_raw_line("\b \b");
-        // TODO: bug for backspace here
-        buf_indx_write = (buf_indx_write - 1) % RCV_BUFFER_SIZE;
-        cmd_data_len = cmd_data_len ? cmd_data_len - 1 : 0;
+        if (cmd_data_len) {
+            uart_put_raw_line("\b \b");
+            pop_data_rcv_buffer();
+        }
         return;
     } else if (data == '\r') {
         uart_put_raw_line("\r\n");
