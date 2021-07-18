@@ -1,14 +1,10 @@
 #include "cmds.h"
 #include "serial.h"
+#include "drivers/uart.h"
 
-#include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
 
-#include <libopencm3/stm32/rcc.h>
-#include <libopencm3/stm32/gpio.h>
-#include <libopencm3/stm32/usart.h>
-#include <libopencm3/cm3/nvic.h>
 
 uint16_t rcv_buf[RCV_BUFFER_SIZE] = {0};
 uint16_t send_buf[SEND_BUFFER_SIZE] = {0};
@@ -20,50 +16,24 @@ volatile int buf_indx_send = 0;
 bool is_cmd_received = false;
 
 
-void uart_setup(void) {
-    nvic_enable_irq(NVIC_USART1_IRQ);
-	rcc_periph_clock_enable(RCC_GPIOA);
-	rcc_periph_clock_enable(RCC_USART1);
-
-	// UART TX on PA9 (GPIO_USART1_TX)
-	gpio_set_mode(GPIOA,
-                  GPIO_MODE_OUTPUT_50_MHZ,
-                  GPIO_CNF_OUTPUT_ALTFN_PUSHPULL,
-                  GPIO_USART1_TX);
-	gpio_set_mode(GPIOA,
-                  GPIO_MODE_INPUT,
-                  GPIO_CNF_INPUT_FLOAT,
-                  GPIO_USART1_RX);
-
-	usart_set_baudrate(USART1,115200);
-	usart_set_databits(USART1,8);
-	usart_set_stopbits(USART1,USART_STOPBITS_1);
-	usart_set_mode(USART1,USART_MODE_TX_RX);
-	usart_set_parity(USART1,USART_PARITY_NONE);
-	usart_set_flow_control(USART1,USART_FLOWCONTROL_NONE);
-    USART_CR1(USART1) |= USART_CR1_RXNEIE;
-	usart_enable(USART1);
-}
-
-
 void usart1_isr(void) {
-    if (USART_SR(USART1) & USART_SR_RXNE) {
-        uart_rcv_echo_buffer(usart_recv(USART1));
-        USART_CR1(USART1) |= USART_CR1_TXEIE;
+    if (is_read_data_ready()) {
+        uart_rcv_echo_buffer(usart1_recv());
+        usart1_trigger_transmission();
     }
 
-	if (USART_SR(USART1) & USART_SR_TXE) {
+	if (is_ready_to_transmit()) {
         enum response_state state = uart_send_response();
         switch (state) {
             case DONE:
-                USART_CR1(USART1) &= ~USART_CR1_TXEIE;
+                usart1_stop_transmission();
             case HAS_MORE:
                 return;
             case EMPTY:
             default:
                 uart_send_echo_buffer();
                 /* Disable the TXE interrupt as we don't need it anymore. */
-                USART_CR1(USART1) &= ~USART_CR1_TXEIE;
+                usart1_stop_transmission();
                 break;
         }
 	}
@@ -119,7 +89,7 @@ void uart_put_raw_line(const char *line) {
         send_buf[indx] = line[indx];
     }
     send_data_len = len;
-    USART_CR1(USART1) |= USART_CR1_TXEIE;
+    usart1_trigger_transmission();
 }
 
 
@@ -131,7 +101,7 @@ void uart_put_new_line(void) {
 enum response_state uart_send_response(void) {
     if (send_data_len) {
         /* Allegedly this should clear TXE flag but it does not.*/
-        usart_send(USART1, send_buf[buf_indx_send++]);
+        usart1_send(send_buf[buf_indx_send++]);
         send_data_len--;
         if (send_data_len == 0) {
             buf_indx_send = 0;
@@ -148,7 +118,7 @@ void uart_send_echo_buffer(void) {
         return;
     }
     int indx_read = get_read_indx_rcv_buffer(rcv_data_len);
-    usart_send(USART1, rcv_buf[indx_read]);
+    usart1_send(rcv_buf[indx_read]);
     rcv_data_len--;
 }
 

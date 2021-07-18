@@ -3,6 +3,7 @@
 
 #include "sys/serial.h"
 #include "sys/timer.h"
+#include "drivers/uart.h"
 
 
 int main(void) {
