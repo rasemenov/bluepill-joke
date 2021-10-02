@@ -10,6 +10,7 @@ CONTRIB_DIR := $(TOP_DIR)/contrib
 OPENCM3_DIR := $(CONTRIB_DIR)/libopencm3
 SRC_DIR     := ./src
 BUILD_DIR   := ./build
+TESTS_DIR   := tests
 INC_DIRS    := $(shell find $(SRC_DIR) -maxdepth 1 -type d)
 INC_DIRS    += $(shell find $(CONTRIB_DIR) -maxdepth 1 -type d)
 CONTRIB     := printf
@@ -68,18 +69,15 @@ LDLIBS		+= -L$(OPENCM3_DIR)/lib -lopencm3_stm32f1
 .SUFFIXES:	.elf .bin .hex .srec .list .map .images
 
 $(BUILD_DIR)/$(BINARY).bin: $(BUILD_DIR)/$(BINARY)
-	@#printf "  OBJCOPY $(*).bin\n"
 	$(OBJCOPY) -Obinary $(*).elf $(*).bin
 
 $(BUILD_DIR)/$(BINARY): lib contrib $(OBJS)
-	@#printf "  $(OPENCM3_DIR)\n"
 	@echo building
 	$(LD) $(TGT_LDFLAGS) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@.elf
 	$(SIZE) $(BUILD_DIR)/$(BINARY).elf
 
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
-	@echo $(INCLUDES)
 	$(CC) $(TGT_CFLAGS) $(CFLAGS) $(INCLUDES) $(TGT_CPPFLAGS) $(CPPFLAGS) -c $< -o $@
 
 lib:
@@ -90,9 +88,12 @@ contrib:
 		$(MAKE) -C $(CONTRIB_DIR)/$$(dep) ; \
 	done
 
+test:
+	$(MAKE) -C $(TESTS_DIR) test
+
 clean:
-	@#printf "  CLEAN\n"
 	rm -rf $(BUILD_DIR)
+	$(MAKE) -C $(TESTS_DIR) clean
 
 clobber: clean
 	$(MAKE) -C $(OPENCM3_DIR) clean
