@@ -46,6 +46,7 @@ uint16_t usart1_recv(void) {
     return usart_recv(USART1);
 }
 
+
 bool is_read_data_ready(void) {
     return (bool)(USART_SR(USART1) & USART_SR_RXNE);
 }

@@ -4,6 +4,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef UNIT_TESTS
+void usart1_isr(void);
+uint16_t *get_send_buffer(void);
+uint16_t *get_rcv_buffer(void);
+#endif
+
 #define ARRAY_LENGTH(x) ((int)(sizeof(x) / sizeof((x)[0])))
 
 #define RCV_BUFFER_SIZE 128

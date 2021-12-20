@@ -8,6 +8,7 @@
 
 uint16_t rcv_buf[RCV_BUFFER_SIZE] = {0};
 uint16_t send_buf[SEND_BUFFER_SIZE] = {0};
+
 volatile int buf_indx_write = 0;
 volatile int rcv_data_len = 0;
 volatile int cmd_data_len = 0;
@@ -176,3 +177,14 @@ void uart_check_for_cmd(void) {
     process_cmd(argc, argv);
     uart_put_raw_line("# ");
 }
+
+
+#ifdef UNIT_TESTS
+uint16_t *get_send_buffer(void) {
+    return send_buf;
+}
+
+uint16_t *get_rcv_buffer(void) {
+    return rcv_buf;
+}
+#endif
