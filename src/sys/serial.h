@@ -7,7 +7,7 @@
 #ifdef UNIT_TESTS
 void usart1_isr(void);
 uint16_t *get_send_buffer(void);
-uint16_t *get_rcv_buffer(void);
+uint16_t *get_rcv_buffer(uint16_t *buf);
 #endif
 
 #define ARRAY_LENGTH(x) ((int)(sizeof(x) / sizeof((x)[0])))

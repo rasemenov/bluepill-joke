@@ -80,7 +80,9 @@ void uart_put_line(const char *line) {
 
 
 void uart_put_raw_line(const char *line) {
+#ifndef UNIT_TESTS
     while (send_data_len);
+#endif
     size_t len = strlen(line);
     if (len > SEND_BUFFER_SIZE) {
         return;
@@ -134,7 +136,7 @@ void uart_rcv_echo_buffer(uint16_t data) {
         }
         return;
     } else if (data == '\r') {
-        uart_put_raw_line("\r\n");
+        uart_put_raw_line(CRLF);
         is_cmd_received = true;
         return;
     }
@@ -184,7 +186,16 @@ uint16_t *get_send_buffer(void) {
     return send_buf;
 }
 
-uint16_t *get_rcv_buffer(void) {
-    return rcv_buf;
+uint16_t *get_rcv_buffer(uint16_t *buf) {
+    if (!buf) {
+        return NULL;
+    }
+    int data_len = rcv_data_len;
+    int indx, output_indx = 0;
+    while (data_len--) {
+        indx = get_read_indx_rcv_buffer(rcv_data_len);
+        buf[output_indx] = rcv_buf[indx];
+    }
+    return buf;
 }
 #endif
