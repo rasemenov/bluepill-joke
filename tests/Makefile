@@ -18,7 +18,7 @@ MOCKFILES = $(addprefix $(SRC_DIR)/,drivers/uart.h sys/cmds.h)
 
 TEST_BIN := $(TEST_SRC:%.c=$(BUILD_DIR)/%)
 INCLUDES := $(addprefix -I,$(INC_DIRS))
-DEFINES  := -DUNIT_TESTS -g
+DEFINES  := -DUNIT_TESTS -DCMOCK_MEM_DYNAMIC -g
 
 CC := $(shell which gcc)
 
@@ -29,7 +29,7 @@ $(TEST_BIN): $(TEST_SRC)
 	$(CC) $(TGT_CFLAGS) $(DEFINES) $(INCLUDES) $(SRCFILES) $< -o $@
 
 $(MOCKS_DIR): $(MOCKFILES)
-	$(RUBY) $(CMOCK) $^
+	$(RUBY) $(CMOCK) -ocmock.yaml $^
 
 test: $(MOCKS_DIR) $(TEST_BIN)
 	@for bin in $(TEST_BIN); do \

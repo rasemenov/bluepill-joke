@@ -1,0 +1,6 @@
+:cmock:
+    :plugins:
+        - :ignore
+        - :array
+        - :expect_any_args
+    :when_ptr: :compare_data

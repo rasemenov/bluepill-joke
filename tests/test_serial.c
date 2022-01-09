@@ -17,7 +17,8 @@ void tearDown(void) {
 #define BUFFER_TEST 300
 
 
-void assert_valid_print(char *test_str) {
+// Spin the UART printing machinery and assert correct output in the process.
+void assert_valid_print(const char *test_str) {
     uint16_t expected[BUFFER_TEST] = {0};
     int str_len = strlen(test_str);
     for (int indx = 0; indx < str_len; indx++) {
@@ -30,13 +31,15 @@ void assert_valid_print(char *test_str) {
 }
 
 
-void assert_valid_echo(char character) {
+// Test arrival and echo of a single byte to UART.
+void assert_valid_echo(const char character) {
     uart_rcv_echo_buffer(character);
     usart1_send_Expect(character);
     uart_send_echo_buffer();
 }
 
 
+// Verify that the echo array has the expected content.
 void assert_valid_echo_buffer(uint16_t *expected) {
     uint16_t send_buf[BUFFER_TEST] = {0};
     TEST_ASSERT_NOT_NULL(get_rcv_buffer(send_buf));
@@ -85,6 +88,7 @@ void test_printing_too_long_string(void) {
 }
 
 
+// Test correct processing of the input echo.
 void test_uart_echo(void) {
     for (int tc = 0; tc < ARRAY_LENGTH(valid_lines); tc++) {
         char *input = valid_lines[tc];
@@ -96,6 +100,7 @@ void test_uart_echo(void) {
 }
 
 
+// Check hitting backspace when no previous characters were entered.
 void test_backspace_no_previous_input(void) {
     uint16_t old_buffer[BUFFER_TEST] = {0};
     get_rcv_buffer(old_buffer);
@@ -108,6 +113,8 @@ void test_backspace_no_previous_input(void) {
 }
 
 
+// Verify sending of the special character set to user to emulate
+// removal of the characters on backspace hit.
 void test_backspace_existing_words(void) {
     uint16_t old_buffer[BUFFER_TEST] = {0};
     const char *test_str = "foo";
@@ -125,6 +132,49 @@ void test_backspace_existing_words(void) {
 }
 
 
+// Check for new line transfer following Return press.
+void test_crlf_at_the_command_end(void) {
+    const char *test_str = "long random command 123 @!$ with new line";
+    int indx = 0, str_len = strlen(test_str);
+    for (indx = 0; indx < str_len; indx++) {
+        assert_valid_echo(test_str[indx]);
+    }
+    uart_rcv_echo_buffer('\r');
+    usart1_trigger_transmission_Expect();
+    assert_valid_print(CRLF);
+}
+
+
+// Check nothing happens when command input is not complete.
+void test_no_actions_for_incomplete_cmd(void) {
+    uart_check_for_cmd();
+    char invalid_line[BUFFER_TEST];
+    memset(invalid_line, '1', sizeof(invalid_line));
+    for (int indx = 0; indx < BUFFER_TEST; indx++) {
+        assert_valid_echo(invalid_line[indx]);
+    }
+    uart_rcv_echo_buffer('\r');
+    uart_check_for_cmd();
+}
+
+
+// Check correct handling of too many CLI arguments case.
+void test_help_message_for_too_many_arguments(void) {
+    char invalid_line[] = "1 2 3 4 5 6";
+    for (int indx = 0; indx < ARRAY_LENGTH(invalid_line); indx++) {
+        assert_valid_echo(invalid_line[indx]);
+    }
+    usart1_trigger_transmission_Expect();
+    uart_rcv_echo_buffer('\r');
+    assert_valid_print(CRLF);
+    usart1_trigger_transmission_Ignore();
+    // TODO: figure out how to compare array items here.
+    process_cmd_ExpectAnyArgs();
+    uart_check_for_cmd();
+    assert_valid_print("# ");
+}
+
+
 int main(void) {
     UnityBegin("tests/test_serial.c");
     RUN_TEST(test_printing_raw_string);
@@ -133,5 +183,8 @@ int main(void) {
     RUN_TEST(test_uart_echo);
     RUN_TEST(test_backspace_no_previous_input);
     RUN_TEST(test_backspace_existing_words);
+    RUN_TEST(test_crlf_at_the_command_end);
+    RUN_TEST(test_no_actions_for_incomplete_cmd);
+    RUN_TEST(test_help_message_for_too_many_arguments);
     return UnityEnd();
 }
