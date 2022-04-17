@@ -19,11 +19,12 @@ struct cmd_t commands[] = {
 static void cli_help(int argc, char *argv[]) {
     UNUSED(argc);
     UNUSED(argv);
+    char buf[128] ={0};
     for (int indx = 0; indx < ARRAY_LENGTH(commands); indx++) {
         const char *desc = commands[indx].desc;
-        if (desc) {
-            uart_put_line(desc);
-        }
+        snprintf(buf, sizeof(buf), "%-10.10s:\t%-64.64s", commands[indx].name,
+                 desc ? desc : "");
+        uart_put_line(buf);
     }
 }
 
