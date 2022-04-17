@@ -42,7 +42,7 @@ LDSCRIPT	?= $(SRC_DIR)/stm32f103c8t6.ld
 
 TGT_CFLAGS	+= $(OPT) $(CSTD)
 TGT_CFLAGS	+= $(ARCH_FLAGS)
-TGT_CFLAGS	+= -Wextra -Wshadow -Wimplicit-function-declaration
+TGT_CFLAGS	+= -Wextra -Wshadow -Wimplicit-function-declaration -Wall -Werror
 TGT_CFLAGS	+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
 TGT_CFLAGS	+= -fno-common -ffunction-sections -fdata-sections
 

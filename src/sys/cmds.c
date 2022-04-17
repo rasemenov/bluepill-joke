@@ -9,10 +9,12 @@
 
 static void cli_help(int argc, char *argv[]);
 static void cli_time(int argc, char *argv[]);
+static void cli_crash(int argc, char *argv[]);
 
 struct cmd_t commands[] = {
-    {"help", "Print available commands and exit", &cli_help},
-    {"time", "Show current ticks counter", &cli_time},
+    {"help", "Print available commands and exit", cli_help},
+    {"time", "Show current ticks counter", cli_time},
+    {"crash", "Crash application by de-referencing NULL pointer", cli_crash},
 };
 
 
@@ -39,6 +41,15 @@ static void cli_time(int argc, char *argv[]) {
         return;
     }
     uart_put_line(buf);
+}
+
+
+static void cli_crash(int argc, char *argv[]) {
+    UNUSED(argc);
+    UNUSED(argv);
+    uart_put_line("Application is going to crash!");
+    volatile char test = *(char *)0;
+    UNUSED(test);
 }
 
 
