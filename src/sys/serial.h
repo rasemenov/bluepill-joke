@@ -4,19 +4,17 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef UNIT_TESTS
+void usart1_isr(void);
+uint16_t *get_send_buffer(void);
+uint16_t *get_rcv_buffer(uint16_t *buf);
+#endif
+
 #define ARRAY_LENGTH(x) ((int)(sizeof(x) / sizeof((x)[0])))
 
 #define RCV_BUFFER_SIZE 128
 #define SEND_BUFFER_SIZE 256
 #define CRLF "\r\n"
-
-enum response_state {
-    DONE,
-    HAS_MORE,
-    EMPTY
-};
-
-void uart_setup(void);
 
 void uart_put_raw_line(const char *line);
 

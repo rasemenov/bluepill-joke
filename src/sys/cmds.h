@@ -2,6 +2,7 @@
 #define CMDS_H
 
 #define CMD_NAME_SIZE 16
+#define UNUSED(x) (void)(x)
 
 struct cmd_t {
     const char name[CMD_NAME_SIZE];

@@ -10,11 +10,11 @@ CONTRIB_DIR := $(TOP_DIR)/contrib
 OPENCM3_DIR := $(CONTRIB_DIR)/libopencm3
 SRC_DIR     := ./src
 BUILD_DIR   := ./build
-INC_DIRS    := $(shell find $(SRC_DIR) -type d)
-INC_DIRS    += $(shell find $(CONTRIB_DIR) -type d)
+TESTS_DIR   := tests
+INC_DIRS    := $(shell find $(SRC_DIR) -maxdepth 1 -type d)
+INC_DIRS    += $(shell find $(CONTRIB_DIR) -maxdepth 1 -type d)
 CONTRIB     := printf
 
-LIBNAME		= opencm3_stm32f1
 DEFS		+= -DSTM32F1
 
 FP_FLAGS	?= -msoft-float
@@ -22,7 +22,6 @@ ARCH_FLAGS	= -mthumb -mcpu=cortex-m3 $(FP_FLAGS) -mfix-cortex-m3-ldrd
 ASFLAGS		= -mthumb -mcpu=cortex-m3
 
 CC		:= $(PREFIX)-gcc
-CXX		:= $(PREFIX)-g++
 LD		:= $(PREFIX)-gcc
 AR		:= $(PREFIX)-ar
 AS		:= $(PREFIX)-as
@@ -31,9 +30,6 @@ SIZE		:= $(PREFIX)-size
 OBJDUMP		:= $(PREFIX)-objdump
 GDB		:= $(PREFIX)-gdb
 STFLASH		= $(shell which st-flash)
-STYLECHECK	:= /checkpatch.pl
-STYLECHECKFLAGS	:= --no-tree -f --terse --mailback
-STYLECHECKFILES	:= $(shell find . -name '*.[ch]')
 OPT		:= -Os -g
 CSTD		?= -std=c99
 
@@ -49,9 +45,8 @@ TGT_CFLAGS	+= $(ARCH_FLAGS)
 TGT_CFLAGS	+= -Wextra -Wshadow -Wimplicit-function-declaration
 TGT_CFLAGS	+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
 TGT_CFLAGS	+= -fno-common -ffunction-sections -fdata-sections
-TGT_CFLAGS	+= -I$(OPENCM3_DIR)/include
 
-TGT_CXXFLAGS	+= $(OPT) $(CXXSTD)
+TGT_CXXFLAGS	+= $(OPT)
 TGT_CXXFLAGS	+= $(ARCH_FLAGS)
 TGT_CXXFLAGS	+= -Wextra -Wshadow -Wredundant-decls  -Weffc++
 TGT_CXXFLAGS	+= -fno-common -ffunction-sections -fdata-sections
@@ -72,22 +67,18 @@ LDLIBS		+= -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 LDLIBS		+= -L$(OPENCM3_DIR)/lib -lopencm3_stm32f1
 
 .SUFFIXES:	.elf .bin .hex .srec .list .map .images
-.SECONDEXPANSION:
-.SECONDARY:
 
 $(BUILD_DIR)/$(BINARY).bin: $(BUILD_DIR)/$(BINARY)
-	@#printf "  OBJCOPY $(*).bin\n"
 	$(OBJCOPY) -Obinary $(*).elf $(*).bin
 
 $(BUILD_DIR)/$(BINARY): lib contrib $(OBJS)
-	@#printf "  $(OPENCM3_DIR)\n"
 	@echo building
 	$(LD) $(TGT_LDFLAGS) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@.elf
 	$(SIZE) $(BUILD_DIR)/$(BINARY).elf
 
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) $(TGT_CFLAGS) $(CFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -c $< -o $@
+	$(CC) $(TGT_CFLAGS) $(CFLAGS) $(INCLUDES) $(TGT_CPPFLAGS) $(CPPFLAGS) -c $< -o $@
 
 lib:
 	$(MAKE) -C $(OPENCM3_DIR) TARGETS=stm32/f1 all
@@ -97,9 +88,12 @@ contrib:
 		$(MAKE) -C $(CONTRIB_DIR)/$$(dep) ; \
 	done
 
+test:
+	$(MAKE) -C $(TESTS_DIR) test
+
 clean:
-	@#printf "  CLEAN\n"
 	rm -rf $(BUILD_DIR)
+	$(MAKE) -C $(TESTS_DIR) clean
 
 clobber: clean
 	$(MAKE) -C $(OPENCM3_DIR) clean
